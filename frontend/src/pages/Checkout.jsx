@@ -1,60 +1,79 @@
 
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
   MapPin,
   CreditCard,
-  ShoppingBag,
+  Truck,
   ShieldCheck,
-  CheckCircle
+  Package
 } from "lucide-react";
 import "./Checkout.css";
 
 export default function Checkout() {
-  const [cart, setCart] = useState([]);
-  const [placed, setPlaced] = useState(false);
-  const [payment, setPayment] = useState("Cash on Delivery");
-  const [address, setAddress] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    street: "",
-    city: "",
-    state: "",
-    pincode: ""
+  const [cart, setCart] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("shopsphere-cart") || "[]");
+    } catch {
+      return [];
+    }
   });
 
-  useEffect(() => {
-    setCart(JSON.parse(localStorage.getItem("shopsphere-cart") || "[]"));
-  }, []);
+  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [deliveryMethod, setDeliveryMethod] = useState("standard");
+  const [order, setOrder] = useState(null);
 
   const subtotal = cart.reduce(
-    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1),
+    (sum, item) => sum + Number(item.price) * item.quantity,
     0
   );
+
+  const originalTotal = cart.reduce(
+    (sum, item) =>
+      sum + Number(item.oldPrice || item.price) * item.quantity,
+    0
+  );
+
+  const savings = originalTotal - subtotal;
+  const deliveryCharge =
+    subtotal === 0 || subtotal >= 999 ? 0 : 49;
+  const expressCharge = deliveryMethod === "express" ? 99 : 0;
+  const total = subtotal + deliveryCharge + expressCharge;
 
   const formatPrice = (price) =>
     `₹${Number(price).toLocaleString("en-IN")}`;
 
-  const updateAddress = (event) => {
-    setAddress({
-      ...address,
-      [event.target.name]: event.target.value
-    });
-  };
-
-  const placeOrder = (event) => {
+  function placeOrder(event) {
     event.preventDefault();
 
-    if (!cart.length) return;
+    if (cart.length === 0) return;
 
-    const order = {
-      orderId: "SS" + Date.now(),
+    const formData = new FormData(event.currentTarget);
+
+    const orderDetails = {
+      orderId: `SS${Date.now()}`,
+      date: new Date().toISOString(),
+      customer: {
+        name: formData.get("name"),
+        email: formData.get("email"),
+        phone: formData.get("phone")
+      },
+      address: {
+        address: formData.get("address"),
+        city: formData.get("city"),
+        state: formData.get("state"),
+        pincode: formData.get("pincode")
+      },
+      paymentMethod,
+      deliveryMethod,
       items: cart,
-      address,
-      paymentMethod: payment,
-      total: subtotal,
-      orderDate: new Date().toISOString(),
+      subtotal,
+      savings,
+      deliveryCharge: deliveryCharge + expressCharge,
+      total,
       status: "Order Placed"
     };
 
@@ -64,40 +83,68 @@ export default function Checkout() {
 
     localStorage.setItem(
       "shopsphere-orders",
-      JSON.stringify([order, ...previousOrders])
+      JSON.stringify([orderDetails, ...previousOrders])
     );
 
     localStorage.removeItem("shopsphere-cart");
-    setCart([]);
-    setPlaced(true);
-  };
 
-  if (placed) {
+    setOrder(orderDetails);
+    setCart([]);
+  }
+
+  if (order) {
     return (
       <main className="checkout-page">
-        <div className="order-success">
-          <CheckCircle size={68} />
+        <section className="order-success">
+          <div className="success-icon">
+            <CheckCircle size={65} />
+          </div>
+
           <h1>Order Placed Successfully!</h1>
-          <p>Your ShopSphere order has been saved.</p>
-          <Link to="/" className="checkout-primary-button">
-            Continue Shopping
-          </Link>
-        </div>
+
+          <p>
+            Thank you for shopping with ShopSphere.
+            Your order has been recorded successfully.
+          </p>
+
+          <div className="success-order-info">
+            <span>Order ID</span>
+            <strong>{order.orderId}</strong>
+
+            <span>Order Total</span>
+            <strong>{formatPrice(order.total)}</strong>
+
+            <span>Payment Method</span>
+            <strong>{order.paymentMethod.toUpperCase()}</strong>
+
+            <span>Order Status</span>
+            <strong className="order-status">{order.status}</strong>
+          </div>
+
+          <div className="success-actions">
+            <Link to="/" className="checkout-primary-btn">
+              Continue Shopping
+            </Link>
+            <Link to="/orders" className="checkout-secondary-btn">
+              View Orders
+            </Link>
+          </div>
+        </section>
       </main>
     );
   }
 
-  if (!cart.length) {
+  if (cart.length === 0) {
     return (
       <main className="checkout-page">
-        <div className="checkout-empty">
-          <ShoppingBag size={55} />
-          <h2>Your cart is empty</h2>
-          <p>Add products before proceeding to checkout.</p>
-          <Link to="/categories" className="checkout-primary-button">
+        <section className="checkout-empty">
+          <Package size={55} />
+          <h1>Your cart is empty</h1>
+          <p>Add products to your cart before proceeding to checkout.</p>
+          <Link to="/categories" className="checkout-primary-btn">
             Explore Products
           </Link>
-        </div>
+        </section>
       </main>
     );
   }
@@ -105,167 +152,310 @@ export default function Checkout() {
   return (
     <main className="checkout-page">
       <div className="checkout-container">
-        <Link to="/cart" className="checkout-back">
-          ← Back to Cart
-        </Link>
 
-        <h1>Checkout</h1>
-        <p className="checkout-subtitle">
-          Complete your delivery and payment details.
-        </p>
+        <div className="checkout-heading">
+          <h1>Checkout</h1>
+          <p>Complete your details to place your order.</p>
+        </div>
 
-        <div className="checkout-layout">
-          <form className="checkout-form" onSubmit={placeOrder}>
-            <section className="checkout-section">
-              <h2><MapPin size={20} /> Delivery Address</h2>
+        <form onSubmit={placeOrder}>
+          <div className="checkout-layout">
 
-              <div className="checkout-fields">
-                <input
-                  name="name"
-                  placeholder="Full Name"
-                  value={address.name}
-                  onChange={updateAddress}
-                  required
-                />
+            <section className="checkout-form-section">
 
-                <input
-                  name="phone"
-                  type="tel"
-                  placeholder="Phone Number"
-                  pattern="[0-9]{10}"
-                  title="Enter a valid 10-digit phone number"
-                  value={address.phone}
-                  onChange={updateAddress}
-                  required
-                />
+              <div className="checkout-card">
+                <div className="checkout-card-heading">
+                  <span className="checkout-step">1</span>
+                  <div>
+                    <h2>Contact Information</h2>
+                    <p>Enter your contact details.</p>
+                  </div>
+                </div>
 
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="Email Address"
-                  value={address.email}
-                  onChange={updateAddress}
-                  required
-                />
+                <div className="checkout-input-grid">
+                  <div className="checkout-field full-width">
+                    <label htmlFor="customer-name">Full Name *</label>
+                    <input
+                      id="customer-name"
+                      name="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      minLength={2}
+                      maxLength={80}
+                      required
+                    />
+                  </div>
 
-                <textarea
-                  name="street"
-                  placeholder="House number, street and area"
-                  value={address.street}
-                  onChange={updateAddress}
-                  required
-                />
+                  <div className="checkout-field">
+                    <label htmlFor="customer-email">Email Address *</label>
+                    <input
+                      id="customer-email"
+                      name="email"
+                      type="email"
+                      placeholder="example@email.com"
+                      required
+                    />
+                  </div>
 
-                <input
-                  name="city"
-                  placeholder="City"
-                  value={address.city}
-                  onChange={updateAddress}
-                  required
-                />
+                  <div className="checkout-field">
+                    <label htmlFor="customer-phone">Phone Number *</label>
+                    <input
+                      id="customer-phone"
+                      name="phone"
+                      type="tel"
+                      placeholder="10-digit mobile number"
+                      pattern="[6-9][0-9]{9}"
+                      maxLength={10}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
 
-                <input
-                  name="state"
-                  placeholder="State"
-                  value={address.state}
-                  onChange={updateAddress}
-                  required
-                />
+              <div className="checkout-card">
+                <div className="checkout-card-heading">
+                  <span className="checkout-step">2</span>
+                  <div>
+                    <h2>Shipping Address</h2>
+                    <p>Where should we deliver your order?</p>
+                  </div>
+                </div>
 
-                <input
-                  name="pincode"
-                  placeholder="PIN Code"
-                  pattern="[0-9]{6}"
-                  title="Enter a valid 6-digit PIN code"
-                  value={address.pincode}
-                  onChange={updateAddress}
-                  required
-                />
+                <div className="checkout-input-grid">
+                  <div className="checkout-field full-width">
+                    <label htmlFor="address">House / Street Address *</label>
+                    <textarea
+                      id="address"
+                      name="address"
+                      placeholder="Enter house number, street and locality"
+                      rows="3"
+                      maxLength={250}
+                      required
+                    />
+                  </div>
+
+                  <div className="checkout-field">
+                    <label htmlFor="city">City *</label>
+                    <input
+                      id="city"
+                      name="city"
+                      type="text"
+                      placeholder="Enter city"
+                      required
+                    />
+                  </div>
+
+                  <div className="checkout-field">
+                    <label htmlFor="state">State *</label>
+                    <select id="state" name="state" required defaultValue="">
+                      <option value="" disabled>Select State</option>
+                      <option>Andhra Pradesh</option>
+                      <option>Telangana</option>
+                      <option>Karnataka</option>
+                      <option>Tamil Nadu</option>
+                      <option>Kerala</option>
+                      <option>Maharashtra</option>
+                      <option>Delhi</option>
+                      <option>Gujarat</option>
+                      <option>West Bengal</option>
+                      <option>Uttar Pradesh</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+
+                  <div className="checkout-field">
+                    <label htmlFor="pincode">PIN Code *</label>
+                    <input
+                      id="pincode"
+                      name="pincode"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      placeholder="6-digit PIN code"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="checkout-card">
+                <div className="checkout-card-heading">
+                  <span className="checkout-step">3</span>
+                  <div>
+                    <h2>Delivery Method</h2>
+                    <p>Choose your preferred delivery option.</p>
+                  </div>
+                </div>
+
+                <div className="delivery-options">
+                  <label className={`delivery-option ${deliveryMethod === "standard" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="delivery"
+                      checked={deliveryMethod === "standard"}
+                      onChange={() => setDeliveryMethod("standard")}
+                    />
+                    <Truck size={23} />
+                    <span>
+                      <strong>Standard Delivery</strong>
+                      <small>Estimated 5–7 business days</small>
+                    </span>
+                    <strong>{deliveryCharge === 0 ? "FREE" : formatPrice(deliveryCharge)}</strong>
+                  </label>
+
+                  <label className={`delivery-option ${deliveryMethod === "express" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="delivery"
+                      checked={deliveryMethod === "express"}
+                      onChange={() => setDeliveryMethod("express")}
+                    />
+                    <Package size={23} />
+                    <span>
+                      <strong>Express Delivery</strong>
+                      <small>Estimated 2–3 business days</small>
+                    </span>
+                    <strong>+₹99</strong>
+                  </label>
+                </div>
+              </div>
+
+              <div className="checkout-card">
+                <div className="checkout-card-heading">
+                  <span className="checkout-step">4</span>
+                  <div>
+                    <h2>Payment Method</h2>
+                    <p>Select how you want to pay.</p>
+                  </div>
+                </div>
+
+                <div className="payment-options">
+
+                  <label className={`payment-option ${paymentMethod === "upi" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="upi"
+                      checked={paymentMethod === "upi"}
+                      onChange={() => setPaymentMethod("upi")}
+                    />
+                    <span>
+                      <strong>UPI Payment</strong>
+                      <small>Google Pay, PhonePe, Paytm</small>
+                    </span>
+                  </label>
+
+                  <label className={`payment-option ${paymentMethod === "card" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="card"
+                      checked={paymentMethod === "card"}
+                      onChange={() => setPaymentMethod("card")}
+                    />
+                    <CreditCard size={22} />
+                    <span>
+                      <strong>Credit / Debit Card</strong>
+                      <small>Demo selection only</small>
+                    </span>
+                  </label>
+
+                  <label className={`payment-option ${paymentMethod === "cod" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="cod"
+                      checked={paymentMethod === "cod"}
+                      onChange={() => setPaymentMethod("cod")}
+                    />
+                    <span>
+                      <strong>Cash on Delivery</strong>
+                      <small>Pay when your order arrives</small>
+                    </span>
+                  </label>
+
+                </div>
+
+                <p className="payment-demo-note">
+                  <ShieldCheck size={17} />
+                  Demo checkout: online payment methods are not charged.
+                </p>
+              </div>
+
+              <div className="checkout-form-actions">
+                <Link to="/cart" className="checkout-back-link">
+                  <ArrowLeft size={17} />
+                  Back to Cart
+                </Link>
+
+                <button type="submit" className="place-order-btn">
+                  Place Order
+                  <ArrowRight size={18} />
+                </button>
               </div>
             </section>
 
-            <section className="checkout-section">
-              <h2><CreditCard size={20} /> Payment Method</h2>
+            <aside className="checkout-order-summary">
+              <h2>Order Summary</h2>
 
-              <label className="payment-option">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="Cash on Delivery"
-                  checked={payment === "Cash on Delivery"}
-                  onChange={(e) => setPayment(e.target.value)}
-                />
-                <span>Cash on Delivery</span>
-              </label>
+              <div className="checkout-products">
+                {cart.map((item) => (
+                  <div className="checkout-product" key={item.id}>
+                    <img src={item.image} alt={item.name} />
 
-              <label className="payment-option">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="UPI (Demo)"
-                  checked={payment === "UPI (Demo)"}
-                  onChange={(e) => setPayment(e.target.value)}
-                />
-                <span>UPI (Demo)</span>
-              </label>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <small>Quantity: {item.quantity}</small>
+                      <span>{formatPrice(item.price * item.quantity)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-              <label className="payment-option">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="Card (Demo)"
-                  checked={payment === "Card (Demo)"}
-                  onChange={(e) => setPayment(e.target.value)}
-                />
-                <span>Credit / Debit Card (Demo)</span>
-              </label>
+              <div className="checkout-price-row">
+                <span>Subtotal</span>
+                <strong>{formatPrice(subtotal)}</strong>
+              </div>
 
-              <p className="payment-note">
-                Online payment methods are demo options only.
-                No actual payment will be processed.
-              </p>
-            </section>
-
-            <button type="submit" className="checkout-primary-button">
-              Place Order · {formatPrice(subtotal)}
-            </button>
-          </form>
-
-          <aside className="checkout-summary">
-            <h2>Order Summary</h2>
-
-            {cart.map((item) => (
-              <div className="checkout-product" key={item.id}>
-                <span>
-                  {item.name} × {item.quantity}
-                </span>
-                <strong>
-                  {formatPrice(Number(item.price || 0) * item.quantity)}
+              <div className="checkout-price-row">
+                <span>Savings</span>
+                <strong className="checkout-savings">
+                  -{formatPrice(savings)}
                 </strong>
               </div>
-            ))}
 
-            <div className="checkout-summary-row">
-              <span>Subtotal</span>
-              <strong>{formatPrice(subtotal)}</strong>
-            </div>
+              <div className="checkout-price-row">
+                <span>Delivery</span>
+                <strong>
+                  {deliveryCharge === 0 ? "FREE" : formatPrice(deliveryCharge)}
+                </strong>
+              </div>
 
-            <div className="checkout-summary-row">
-              <span>Delivery</span>
-              <strong>Free</strong>
-            </div>
+              {expressCharge > 0 && (
+                <div className="checkout-price-row">
+                  <span>Express delivery</span>
+                  <strong>{formatPrice(expressCharge)}</strong>
+                </div>
+              )}
 
-            <div className="checkout-grand-total">
-              <span>Total</span>
-              <strong>{formatPrice(subtotal)}</strong>
-            </div>
+              <div className="checkout-total-row">
+                <span>Total Payable</span>
+                <strong>{formatPrice(total)}</strong>
+              </div>
 
-            <p className="checkout-trust">
-              <ShieldCheck size={17} />
-              Your order details are stored in this browser.
-            </p>
-          </aside>
-        </div>
+              <p className="checkout-tax-note">
+                Inclusive of applicable taxes.
+              </p>
+
+              <div className="checkout-security">
+                <ShieldCheck size={20} />
+                <span>Your checkout information is handled locally in this demo.</span>
+              </div>
+            </aside>
+
+          </div>
+        </form>
       </div>
     </main>
   );
