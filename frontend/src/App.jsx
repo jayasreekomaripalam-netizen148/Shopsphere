@@ -1,7 +1,10 @@
+import Checkout from "./pages/Checkout";
+import Cart from "./pages/Cart";
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Categories from "./pages/Categories";
+import ProductDetails from "./pages/ProductDetails";
 
 function App() {
   return (
@@ -10,6 +13,12 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/categories" element={<Categories />} />
+<Route path="/checkout" element={<Checkout />} />          
+
+
+<Route path="/cart" element={<Cart />} />
+<Route 
+path="/products/:id" element={<ProductDetails />} />
         </Routes>
       </div>
     </BrowserRouter>
@@ -17,3 +26,4 @@ function App() {
 }
 
 export default App;
+

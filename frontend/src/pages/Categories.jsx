@@ -88,6 +88,24 @@ export default function Categories() {
           ))}
         </div>
 
+
+
+
+<div className="product-card" key={product.id}>
+  <img src={product.image} alt={product.name} />
+
+  <h3>{product.name}</h3>
+
+  <p>₹{product.price}</p>
+
+  <Link
+    to={`/product/${product.id}`}
+    className="view-product-btn"
+  >
+    View Product
+  </Link>
+</div>
+
         {filtered.length === 0 && (
           <div className="categories-empty">
             <Search size={34} />

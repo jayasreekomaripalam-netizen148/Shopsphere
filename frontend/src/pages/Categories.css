@@ -316,3 +316,40 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* View Product Button */
+
+.view-product-btn {
+  display: inline-block;
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 12px;
+  text-align: center;
+  background: #2563eb;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.view-product-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.view-product-btn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 600px) {
+  .view-product-btn {
+    padding: 11px;
+    font-size: 13px;
+  }
+}
+
+

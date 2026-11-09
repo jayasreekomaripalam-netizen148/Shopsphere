@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search, UserRound, Heart, ShoppingCart, Menu,
@@ -110,6 +110,7 @@ function readStorage(key, fallback) {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get("category") || "All");
@@ -481,6 +482,14 @@ export default function Home() {
                       </small>
 
                       <h3>{product.name}</h3>
+
+                      <button
+                        type="button"
+                        className="view-details-button"
+                        onClick={() => navigate(`/products/${product.id}`, { state: { product } })}
+                      >
+                        View Details
+                      </button>
 
                       <div className="product-rating">
                         <span className="rating-pill">
