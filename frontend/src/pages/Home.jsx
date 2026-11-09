@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search, UserRound, Heart, ShoppingCart, Menu,
@@ -109,8 +110,9 @@ function readStorage(key, fallback) {
 }
 
 export default function Home() {
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get("category") || "All");
   const [cart, setCart] = useState(() => readStorage("shopsphere-cart", []));
   const [wishlist, setWishlist] = useState(() => readStorage("shopsphere-wishlist", []));
   const [menuOpen, setMenuOpen] = useState(false);
@@ -303,7 +305,7 @@ export default function Home() {
 
         <div className="nav-links">
           <a href="#home">Home</a>
-          <a href="#categories">Categories</a>
+          <Link to="/categories">Categories</Link>
           <a href="#products">Shop Products</a>
           <a href="#deals">Today's Deals</a>
           <a href="#benefits">Why Shop With Us</a>
@@ -390,7 +392,7 @@ export default function Home() {
                 <h2>Shop by Category</h2>
                 <p>Find exactly what you're looking for.</p>
               </div>
-              <a href="#products">Explore Products <ChevronRight size={16} /></a>
+              <Link to="/categories" className="explore-categories-link">View All Categories <ChevronRight size={16} /></Link>
             </div>
 
             <div className="category-grid">
@@ -560,7 +562,7 @@ export default function Home() {
               <div>
                 <strong>About ShopSphere</strong>
                 <a href="#home">Our Store</a>
-                <a href="#categories">Collections</a>
+                <Link to="/categories">Collections</Link>
               </div>
             </div>
             <div className="footer-bottom">
