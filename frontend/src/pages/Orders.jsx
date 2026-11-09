@@ -1,110 +1,90 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Package,
-  ShoppingBag,
-  ArrowLeft,
+  Truck,
+  CheckCircle,
+  Clock,
   MapPin,
   CreditCard,
-  CalendarDays,
+  ShoppingBag,
   ChevronDown,
   ChevronUp,
-  RefreshCw,
+  PackageCheck,
+  ArrowLeft,
 } from "lucide-react";
 import "./Orders.css";
 
-function Orders() {
-  const [orders, setOrders] = useState([]);
-  const [expandedOrder, setExpandedOrder] = useState(null);
-
-  useEffect(() => {
-    try {
-      const savedOrders = JSON.parse(
-        localStorage.getItem("shopsphere-orders") || "[]"
-      );
-      setOrders(Array.isArray(savedOrders) ? savedOrders : []);
-    } catch {
-      setOrders([]);
-    }
-  }, []);
-
-  const formatDate = (date) => {
-    if (!date) return "Date unavailable";
-
-    const parsedDate = new Date(date);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return "Date unavailable";
-    }
-
-    return parsedDate.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const toggleOrder = (orderId) => {
-    setExpandedOrder((current) =>
-      current === orderId ? null : orderId
+const getOrders = () => {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("shopsphere-orders") || "[]"
     );
-  };
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+};
 
-  const reorder = (order) => {
-    try {
-      const existingCart = JSON.parse(
-        localStorage.getItem("shopsphere-cart") || "[]"
-      );
+const trackingSteps = [
+  { label: "Order Placed", icon: ShoppingBag },
+  { label: "Confirmed", icon: CheckCircle },
+  { label: "Shipped", icon: Package },
+  { label: "Out for Delivery", icon: Truck },
+  { label: "Delivered", icon: PackageCheck },
+];
 
-      const cart = Array.isArray(existingCart) ? existingCart : [];
+const statusIndex = (status = "Order Placed") => {
+  const index = trackingSteps.findIndex(
+    (step) => step.label.toLowerCase() === status.toLowerCase()
+  );
+  return index === -1 ? 0 : index;
+};
 
-      order.items?.forEach((item) => {
-        const existingItem = cart.find(
-          (cartItem) => String(cartItem.id) === String(item.id)
-        );
-
-        if (existingItem) {
-          existingItem.quantity =
-            Number(existingItem.quantity || 1) +
-            Number(item.quantity || 1);
-        } else {
-          cart.push({
-            ...item,
-            quantity: Number(item.quantity || 1),
-          });
-        }
+function formatDate(date) {
+  if (!date) return "Date unavailable";
+  const parsed = new Date(date);
+  return Number.isNaN(parsed.getTime())
+    ? "Date unavailable"
+    : parsed.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
+}
 
-      localStorage.setItem("shopsphere-cart", JSON.stringify(cart));
-      window.location.href = "/cart";
-    } catch {
-      alert("Unable to reorder. Please try again.");
-    }
+function Orders() {
+  const [orders] = useState(getOrders);
+  const [expanded, setExpanded] = useState(
+    orders.length > 0 ? orders[0].orderId : null
+  );
+
+  const sortedOrders = useMemo(() => orders, [orders]);
+
+  const toggleOrder = (id) => {
+    setExpanded((current) => (current === id ? null : id));
   };
 
-  if (orders.length === 0) {
+  if (sortedOrders.length === 0) {
     return (
       <div className="orders-page">
         <div className="orders-empty">
           <div className="orders-empty-icon">
-            <ShoppingBag size={46} />
+            <Package size={48} />
           </div>
-
-          <h2>No orders yet</h2>
+          <h2>No orders yet!</h2>
           <p>
-            You haven't placed any orders. Explore ShopSphere
-            and discover products you'll love.
+            You haven't placed any orders. Explore our products and
+            find something you'll love.
           </p>
-
-          <Link to="/categories" className="orders-shop-btn">
-            <ShoppingBag size={18} />
+          <Link to="/categories" className="orders-primary-btn">
             Start Shopping
           </Link>
-
           <Link to="/" className="orders-back-link">
-            <ArrowLeft size={16} />
-            Back to Home
+            <ArrowLeft size={16} /> Back to Home
           </Link>
         </div>
       </div>
@@ -112,178 +92,212 @@ function Orders() {
   }
 
   return (
-    <div className="orders-page">
+    <main className="orders-page">
       <div className="orders-container">
         <div className="orders-heading">
           <div>
-            <span className="orders-eyebrow">YOUR ACCOUNT</span>
+            <span className="orders-eyebrow">SHOPSPHERE ACCOUNT</span>
             <h1>My Orders</h1>
-            <p>Track and manage your ShopSphere purchases.</p>
+            <p>View your purchases and track your deliveries.</p>
           </div>
-
-          <Link to="/categories" className="orders-continue-btn">
-            <ShoppingBag size={17} />
-            Continue Shopping
+          <Link to="/categories" className="orders-shop-btn">
+            <ShoppingBag size={17} /> Continue Shopping
           </Link>
         </div>
 
-        <div className="orders-count">
-          <Package size={19} />
-          <span>
-            {orders.length} {orders.length === 1 ? "Order" : "Orders"} found
-          </span>
+        <div className="orders-summary">
+          <div>
+            <span>Total Orders</span>
+            <strong>{sortedOrders.length}</strong>
+          </div>
+          <div>
+            <span>Total Items</span>
+            <strong>
+              {sortedOrders.reduce(
+                (sum, order) =>
+                  sum +
+                  (order.items || []).reduce(
+                    (itemSum, item) =>
+                      itemSum + Number(item.quantity || 1),
+                    0
+                  ),
+                0
+              )}
+            </strong>
+          </div>
+          <div>
+            <span>Recent Order</span>
+            <strong>{formatDate(sortedOrders[0].date).split(",")[0]}</strong>
+          </div>
         </div>
 
+        <h2 className="orders-section-title">Your Purchase History</h2>
+
         <div className="orders-list">
-          {orders.map((order, index) => {
-            const orderKey = order.orderId || `order-${index}`;
-            const isExpanded = expandedOrder === orderKey;
+          {sortedOrders.map((order) => {
+            const isOpen = expanded === order.orderId;
+            const currentStep = statusIndex(order.status);
 
             return (
-              <article className="order-card" key={orderKey}>
+              <article className="order-card" key={order.orderId}>
                 <div className="order-card-header">
-                  <div className="order-header-info">
-                    <div className="order-icon">
-                      <Package size={21} />
-                    </div>
-
-                    <div>
-                      <h3>Order #{order.orderId || "N/A"}</h3>
-                      <span>
-                        <CalendarDays size={14} />
-                        {formatDate(order.date)}
-                      </span>
-                    </div>
+                  <div className="order-id-block">
+                    <span>ORDER ID</span>
+                    <strong>{order.orderId}</strong>
+                    <small>{formatDate(order.date)}</small>
                   </div>
 
-                  <span className="order-status">
-                    {order.status || "Order Placed"}
-                  </span>
-                </div>
-
-                <div className="order-card-body">
-                  <div className="order-products-preview">
-                    {(order.items || []).slice(0, 3).map((item, itemIndex) => (
-                      <div className="order-product" key={`${item.id}-${itemIndex}`}>
-                        <img
-                          src={item.image || item.imageUrl || ""}
-                          alt={item.name || "Product"}
-                          onError={(event) => {
-                            event.currentTarget.style.visibility = "hidden";
-                          }}
-                        />
-
-                        <div className="order-product-info">
-                          <h4>{item.name || item.title || "Product"}</h4>
-                          <span>
-                            Qty: {item.quantity || 1}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-
-                    {(order.items || []).length > 3 && (
-                      <span className="order-more-items">
-                        +{order.items.length - 3} more items
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="order-total">
-                    <span>Order Total</span>
+                  <div className="order-status-block">
+                    <span className="order-status">
+                      <CheckCircle size={14} />
+                      {order.status || "Order Placed"}
+                    </span>
                     <strong>
                       ₹{Number(order.total || 0).toLocaleString("en-IN")}
                     </strong>
                   </div>
-                </div>
 
-                <div className="order-card-footer">
                   <button
-                    type="button"
-                    className="order-details-btn"
-                    onClick={() => toggleOrder(orderKey)}
+                    className="order-expand-btn"
+                    onClick={() => toggleOrder(order.orderId)}
+                    aria-label="Toggle order details"
                   >
-                    {isExpanded ? "Hide Details" : "View Details"}
-                    {isExpanded ? (
-                      <ChevronUp size={17} />
+                    {isOpen ? (
+                      <ChevronUp size={20} />
                     ) : (
-                      <ChevronDown size={17} />
+                      <ChevronDown size={20} />
                     )}
                   </button>
-
-                  <button
-                    type="button"
-                    className="order-reorder-btn"
-                    onClick={() => reorder(order)}
-                  >
-                    <RefreshCw size={15} />
-                    Order Again
-                  </button>
                 </div>
 
-                {isExpanded && (
-                  <div className="order-expanded-details">
-                    <h4>Order Information</h4>
-
-                    <div className="order-detail-grid">
+                <div className="order-product-preview">
+                  {(order.items || []).slice(0, 3).map((item, index) => (
+                    <div
+                      className="order-preview-item"
+                      key={item.id || item._id || index}
+                    >
+                      {item.image ? (
+                        <img src={item.image} alt={item.name || "Product"} />
+                      ) : (
+                        <div className="order-no-image">
+                          <Package size={22} />
+                        </div>
+                      )}
                       <div>
-                        <span>Customer</span>
-                        <strong>{order.customer?.name || "N/A"}</strong>
-                      </div>
-
-                      <div>
-                        <span>Email</span>
-                        <strong>{order.customer?.email || "N/A"}</strong>
-                      </div>
-
-                      <div>
-                        <span>Phone</span>
-                        <strong>{order.customer?.phone || "N/A"}</strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          <CreditCard size={14} /> Payment Method
-                        </span>
-                        <strong>
-                          {(order.paymentMethod || "N/A").toUpperCase()}
-                        </strong>
+                        <strong>{item.name || item.title || "Product"}</strong>
+                        <span>Qty: {item.quantity || 1}</span>
                       </div>
                     </div>
+                  ))}
+                  {(order.items || []).length > 3 && (
+                    <span className="order-more">
+                      +{order.items.length - 3} more
+                    </span>
+                  )}
+                </div>
 
-                    <div className="order-address">
-                      <span>
-                        <MapPin size={15} /> Delivery Address
-                      </span>
-                      <p>
-                        {order.address?.address || "N/A"},{" "}
-                        {order.address?.city || ""},{" "}
-                        {order.address?.state || ""} -{" "}
-                        {order.address?.pincode || ""}
+                {isOpen && (
+                  <div className="order-details">
+                    <div className="order-tracking">
+                      <h3>Order Tracking</h3>
+                      <div className="tracking-timeline">
+                        {trackingSteps.map((step, index) => {
+                          const StepIcon = step.icon;
+                          const completed = index <= currentStep;
+
+                          return (
+                            <div
+                              className={`tracking-step ${
+                                completed ? "completed" : ""
+                              }`}
+                              key={step.label}
+                            >
+                              <div className="tracking-icon">
+                                <StepIcon size={18} />
+                              </div>
+                              <span>{step.label}</span>
+                              {index < trackingSteps.length - 1 && (
+                                <div className="tracking-line" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="tracking-note">
+                        <Clock size={15} />
+                        Latest status: {order.status || "Order Placed"}
                       </p>
                     </div>
 
-                    <h4>Items in this Order</h4>
-
-                    {(order.items || []).map((item, itemIndex) => (
-                      <div
-                        className="order-detail-item"
-                        key={`${item.id}-${itemIndex}`}
-                      >
-                        <span>
-                          {item.name || item.title || "Product"} ×{" "}
-                          {item.quantity || 1}
-                        </span>
-
-                        <strong>
-                          ₹
-                          {(
-                            Number(item.price || 0) *
-                            Number(item.quantity || 1)
-                          ).toLocaleString("en-IN")}
-                        </strong>
+                    <div className="order-detail-grid">
+                      <div className="order-detail-box">
+                        <h3>
+                          <MapPin size={17} /> Delivery Address
+                        </h3>
+                        <p>
+                          {order.customer?.name || "Customer"}
+                          <br />
+                          {order.address?.address || "Address unavailable"}
+                          <br />
+                          {[
+                            order.address?.city,
+                            order.address?.state,
+                            order.address?.pincode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                          {order.customer?.phone && (
+                            <>
+                              <br />Phone: {order.customer.phone}
+                            </>
+                          )}
+                        </p>
                       </div>
-                    ))}
+
+                      <div className="order-detail-box">
+                        <h3>
+                          <CreditCard size={17} /> Payment Information
+                        </h3>
+                        <p>
+                          Payment Method: {order.paymentMethod || "Not specified"}
+                          <br />
+                          Delivery: {order.deliveryMethod || "Standard"}
+                          <br />
+                          Subtotal: ₹
+                          {Number(order.subtotal || 0).toLocaleString("en-IN")}
+                          <br />
+                          Delivery: ₹
+                          {Number(order.deliveryCharge || 0).toLocaleString("en-IN")}
+                          <br />
+                          <strong>
+                            Total: ₹
+                            {Number(order.total || 0).toLocaleString("en-IN")}
+                          </strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="order-full-items">
+                      <h3>All Ordered Products</h3>
+                      {(order.items || []).map((item, index) => (
+                        <div
+                          className="order-full-item"
+                          key={item.id || item._id || index}
+                        >
+                          <div>
+                            <strong>{item.name || item.title || "Product"}</strong>
+                            <span>Quantity: {item.quantity || 1}</span>
+                          </div>
+                          <strong>
+                            ₹
+                            {(
+                              Number(item.price || 0) *
+                              Number(item.quantity || 1)
+                            ).toLocaleString("en-IN")}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </article>
@@ -291,7 +305,7 @@ function Orders() {
           })}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
