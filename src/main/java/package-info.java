@@ -1,1 +1,1 @@
-package com.shopsphere.controller;
+package com.shopsphere.entity;
