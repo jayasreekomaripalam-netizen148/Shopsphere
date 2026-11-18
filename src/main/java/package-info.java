@@ -1,1 +1,1 @@
-package com.shopsphere.entity;
+package com.shopsphere.repository;
